@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>현장 사진 태거</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
+  :root {
+    --bg:#0f1117; --surface:#1a1d27; --surface2:#22263a; --border:#2e3347;
+    --accent:#4f8ef7; --accent2:#f7954f; --danger:#f75f5f; --success:#4fcf8e;
+    --text:#e8eaf0; --text2:#8b91a8; --text3:#555b72;
+    --radius:10px; --font:'IBM Plex Sans KR',sans-serif; --mono:'IBM Plex Mono',monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;max-width:480px;margin:0 auto;padding-bottom:90px}
+
+  /* Header */
+  .header{display:flex;align-items:center;justify-content:space-between;padding:18px 20px 14px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg);z-index:100}
+  .header-title{font-size:15px;font-weight:600;letter-spacing:.02em}
+  .header-sub{font-size:11px;color:var(--text3);font-family:var(--mono);margin-top:2px}
+
+  /* Tabs */
+  .tabs{display:flex;padding:14px 20px 0;gap:6px;border-bottom:1px solid var(--border)}
+  .tab{padding:8px 16px;font-size:13px;font-weight:500;color:var(--text3);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;white-space:nowrap}
+  .tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+
+  /* Screens */
+  .screen{display:none;padding:20px}
+  .screen.active{display:block}
+
+  /* Section label */
+  .section-label{font-size:11px;font-family:var(--mono);color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px;margin-top:20px}
+  .section-label:first-child{margin-top:0}
+
+  /* Selector Row — 선택 + 추가 한 줄 */
+  .selector-row{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+  .selector-select{flex:1;padding:10px 12px;background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;font-family:var(--font);outline:none;appearance:none;-webkit-appearance:none;cursor:pointer}
+  .selector-select:focus{border-color:var(--accent)}
+  .add-mini-btn{width:38px;height:38px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);color:var(--accent);font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s}
+  .add-mini-btn:active{background:var(--accent);color:#fff}
+
+  /* Selected chip display */
+  .selected-display{display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;margin-bottom:8px;min-height:40px}
+  .selected-display.filled{border-color:var(--accent);background:#1a2238}
+  .selected-label{font-size:13px;font-weight:500;flex:1}
+  .selected-label.empty{color:var(--text3)}
+  .clear-btn{background:none;border:none;color:var(--text3);font-size:18px;cursor:pointer;padding:2px;line-height:1}
+  .clear-btn:active{color:var(--danger)}
+
+  /* Tag list (manage) */
+  .tag-list{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+  .tag-item{display:flex;align-items:center;gap:4px;padding:4px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;font-size:12px}
+  .tag-remove{background:none;border:none;color:var(--text3);cursor:pointer;font-size:14px;line-height:1;padding:0 0 0 2px}
+  .tag-remove:active{color:var(--danger)}
+
+  /* Shoot button */
+  .shoot-area{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;padding:14px 20px;background:linear-gradient(to top,var(--bg) 70%,transparent);z-index:99}
+  .shoot-btn{width:100%;padding:16px;border-radius:var(--radius);background:var(--accent);color:#fff;font-size:15px;font-weight:600;font-family:var(--font);border:none;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:8px}
+  .shoot-btn:disabled{background:var(--surface2);color:var(--text3);cursor:not-allowed}
+  .shoot-btn:not(:disabled):active{transform:scale(.98);background:#3a7de8}
+  .shoot-btn.danger{background:var(--danger)}
+
+  /* Queue */
+  .queue-item{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;gap:12px}
+  .queue-thumb{width:48px;height:48px;border-radius:6px;object-fit:cover;flex-shrink:0;background:var(--surface2)}
+  .queue-info{flex:1;min-width:0}
+  .queue-filename{font-size:11px;font-family:var(--mono);color:var(--accent);word-break:break-all}
+  .queue-meta{font-size:11px;color:var(--text2);margin-top:3px}
+  .queue-del{background:none;border:none;color:var(--text3);font-size:18px;cursor:pointer;padding:4px}
+  .queue-del:active{color:var(--danger)}
+
+  /* Empty state */
+  .empty-state{text-align:center;padding:48px 20px;color:var(--text3);font-size:13px;line-height:1.8}
+  .empty-icon{font-size:36px;margin-bottom:12px}
+
+  /* Modal */
+  .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:200;align-items:flex-end;justify-content:center}
+  .modal-overlay.open{display:flex}
+  .modal{background:var(--surface);border-radius:16px 16px 0 0;width:100%;max-width:480px;padding:24px 20px 40px;border-top:1px solid var(--border);animation:slideUp .25s ease}
+  @keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+  .modal-title{font-size:16px;font-weight:600;margin-bottom:6px}
+  .modal-hint{font-size:12px;color:var(--text3);margin-bottom:20px;line-height:1.6}
+  .modal-close{float:right;background:none;border:none;color:var(--text2);font-size:22px;cursor:pointer;margin-top:-4px}
+
+  /* Input */
+  .input-group{margin-bottom:14px}
+  .input-label{font-size:12px;color:var(--text2);margin-bottom:6px;display:block}
+  .input-field{width:100%;padding:11px 14px;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;font-family:var(--font);outline:none;transition:border-color .15s}
+  .input-field:focus{border-color:var(--accent)}
+  .input-field::placeholder{color:var(--text3)}
+  .tag-input-row{display:flex;gap:8px}
+  .tag-input-row .input-field{flex:1}
+  .add-tag-btn{padding:11px 14px;background:var(--accent);border:none;border-radius:8px;color:#fff;font-size:18px;cursor:pointer;flex-shrink:0}
+  .btn-primary{width:100%;padding:14px;background:var(--accent);border:none;border-radius:var(--radius);color:#fff;font-size:14px;font-weight:600;font-family:var(--font);cursor:pointer;margin-top:8px;transition:all .15s}
+  .btn-primary:active{background:#3a7de8}
+
+  /* Settings */
+  .notice-box{background:#1a2238;border:1px solid #2a3a5c;border-radius:var(--radius);padding:14px 16px;font-size:12px;color:var(--text2);line-height:1.8;margin-bottom:16px}
+  .notice-box strong{color:var(--accent)}
+  .export-box{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:10px}
+  .export-box h4{font-size:13px;font-weight:600;margin-bottom:8px}
+  .export-box p{font-size:12px;color:var(--text2);line-height:1.7}
+  .code-block{background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:10px 12px;font-family:var(--mono);font-size:11px;color:var(--accent);margin-top:10px;word-break:break-all;white-space:pre-wrap}
+
+  /* Toast */
+  .toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--success);color:#fff;padding:10px 20px;border-radius:20px;font-size:13px;font-weight:500;opacity:0;transition:all .3s;z-index:300;white-space:nowrap}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <div class="header-title">📷 현장 사진 태거</div>
+    <div class="header-sub" id="headerSub">항목을 선택하세요</div>
+  </div>
+</div>
+
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('shoot')">촬영</div>
+  <div class="tab" onclick="switchTab('queue')">대기 목록 <span id="queueBadge"></span></div>
+  <div class="tab" onclick="switchTab('settings')">항목 관리</div>
+</div>
+
+<!-- ══ 촬영 탭 ══ -->
+<div class="screen active" id="screen-shoot">
+
+  <!-- 프로젝트 -->
+  <div class="section-label">프로젝트</div>
+  <div class="selected-display" id="disp-project">
+    <span class="selected-label empty" id="disp-project-text">선택 안 됨</span>
+  </div>
+  <div class="selector-row">
+    <select class="selector-select" id="sel-project" onchange="onSelectProject(this.value)">
+      <option value="">-- 프로젝트 선택 --</option>
+    </select>
+    <button class="add-mini-btn" onclick="openModal('project')" title="새 프로젝트 추가">＋</button>
+  </div>
+
+  <!-- 공정/분류 -->
+  <div class="section-label" id="label-process">공정 / 구역</div>
+  <div class="selected-display" id="disp-process">
+    <span class="selected-label empty" id="disp-process-text">선택 안 됨</span>
+  </div>
+  <div class="selector-row">
+    <select class="selector-select" id="sel-process" onchange="onSelectProcess(this.value)">
+      <option value="">-- 항목 선택 --</option>
+    </select>
+    <button class="add-mini-btn" onclick="openModal('process')" title="새 항목 추가">＋</button>
+  </div>
+
+  <!-- 촬영 목적 -->
+  <div class="section-label">촬영 목적</div>
+  <div class="selected-display" id="disp-purpose">
+    <span class="selected-label empty" id="disp-purpose-text">선택 안 됨</span>
+  </div>
+  <div class="selector-row">
+    <select class="selector-select" id="sel-purpose" onchange="onSelectPurpose(this.value)">
+      <option value="">-- 목적 선택 --</option>
+    </select>
+    <button class="add-mini-btn" onclick="openModal('purpose')" title="새 목적 추가">＋</button>
+  </div>
+
+</div>
+
+<!-- ══ 대기 목록 탭 ══ -->
+<div class="screen" id="screen-queue">
+  <div id="queueList"></div>
+</div>
+
+<!-- ══ 항목 관리 탭 ══ -->
+<div class="screen" id="screen-settings">
+
+  <div class="section-label">프로젝트 목록</div>
+  <div id="manage-projects"></div>
+
+  <div class="section-label" style="margin-top:24px">공정/구역 항목</div>
+  <div class="notice-box"><strong>공정/구역</strong>은 선택된 프로젝트에 속한 항목이에요.<br>촬영 탭에서 프로젝트를 선택하면 해당 항목만 표시돼요.</div>
+  <div id="manage-processes"></div>
+
+  <div class="section-label" style="margin-top:24px">촬영 목적 (전체 공통)</div>
+  <div id="manage-purposes"></div>
+
+  <div class="section-label" style="margin-top:28px">NAS 폴더 구조</div>
+  <div class="export-box">
+    <h4>Cowork 자동 분류 명령어</h4>
+    <p>PC 연결 후 Cowork에 아래 명령을 붙여넣으세요.</p>
+    <div class="code-block">"내 사진 폴더에서 현장사진 파일들을
+파일명 규칙(프로젝트_공정_목적_날짜시간)에 따라
+NAS/현장사진/ 폴더 구조로 자동 분류해줘"</div>
+  </div>
+
+</div>
+
+<!-- ══ 촬영 버튼 ══ -->
+<div class="shoot-area">
+  <button class="shoot-btn" id="shootBtn" disabled onclick="triggerCamera()">
+    📷 사진 촬영
+  </button>
+</div>
+
+<!-- 카메라 input — capture="environment" 로 후면 카메라 직접 호출 -->
+<input type="file" id="cameraInput" accept="image/*" capture="environment" style="display:none" onchange="handlePhoto(event)">
+<!-- 파일 선택 fallback (데스크톱 테스트용) -->
+<input type="file" id="fileInput" accept="image/*" style="display:none" onchange="handlePhoto(event)">
+
+<!-- ══ 추가 모달 ══ -->
+<div class="modal-overlay" id="modalOverlay" onclick="closeModalOutside(event)">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal()">×</button>
+    <div class="modal-title" id="modal-title">추가</div>
+    <div class="modal-hint" id="modal-hint"></div>
+    <div class="tag-input-row">
+      <input class="input-field" id="modal-input" placeholder="" maxlength="30">
+      <button class="add-tag-btn" onclick="modalAdd()">＋</button>
+    </div>
+    <div class="tag-list" id="modal-tag-list" style="margin-top:12px"></div>
+    <button class="btn-primary" onclick="closeModal()">완료</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── State ──
+let S = {
+  projects: [],      // [{id, name}]
+  processes: {},     // {projectId: [{id, name}]}
+  purposes: ['트러블','정기점검','진척현황'],
+  sel: { project: null, process: null, purpose: null },
+  queue: [],
+  modalType: null
+};
+
+function load() {
+  try { const d = localStorage.getItem('pTag2'); if(d) S = {...S, ...JSON.parse(d)}; } catch(e){}
+}
+function save() {
+  localStorage.setItem('pTag2', JSON.stringify(S));
+}
+
+// ── Toast ──
+function toast(msg, color) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.style.background = color || 'var(--success)';
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+// ── Tab ──
+function switchTab(name) {
+  ['shoot','queue','settings'].forEach((n,i) => {
+    document.querySelectorAll('.tab')[i].classList.toggle('active', n===name);
+    document.getElementById('screen-'+n).classList.toggle('active', n===name);
+  });
+  document.getElementById('shootArea').style.display = name==='shoot' ? 'block' : 'none';
+  if (name==='queue') renderQueue();
+  if (name==='settings') renderSettings();
+}
+
+// ── Selects ──
+function refreshProjectSelect() {
+  const sel = document.getElementById('sel-project');
+  const cur = S.sel.project?.id;
+  sel.innerHTML = '<option value="">-- 프로젝트 선택 --</option>' +
+    S.projects.map(p => `<option value="${p.id}" ${p.id===cur?'selected':''}>${p.name}</option>`).join('');
+}
+
+function refreshProcessSelect() {
+  const sel = document.getElementById('sel-process');
+  const cur = S.sel.process?.id;
+  const list = S.sel.project ? (S.processes[S.sel.project.id] || []) : [];
+  const label = S.sel.project?.categoryLabel || '공정 / 구역';
+  document.getElementById('label-process').textContent = label;
+  sel.innerHTML = `<option value="">-- ${label} 선택 --</option>` +
+    list.map(p => `<option value="${p.id}" ${p.id===cur?'selected':''}>${p.name}</option>`).join('');
+}
+
+function refreshPurposeSelect() {
+  const sel = document.getElementById('sel-purpose');
+  const cur = S.sel.purpose;
+  sel.innerHTML = '<option value="">-- 목적 선택 --</option>' +
+    S.purposes.map(p => `<option value="${p}" ${p===cur?'selected':''}>${p}</option>`).join('');
+}
+
+function onSelectProject(id) {
+  S.sel.project = S.projects.find(p => p.id===id) || null;
+  S.sel.process = null;
+  save();
+  updateDisplay();
+  refreshProcessSelect();
+  updateShootBtn();
+}
+
+function onSelectProcess(id) {
+  const list = S.sel.project ? (S.processes[S.sel.project.id] || []) : [];
+  S.sel.process = list.find(p => p.id===id) || null;
+  save();
+  updateDisplay();
+  updateShootBtn();
+}
+
+function onSelectPurpose(val) {
+  S.sel.purpose = val || null;
+  save();
+  updateDisplay();
+  updateShootBtn();
+}
+
+function updateDisplay() {
+  setDisp('project', S.sel.project?.name);
+  setDisp('process', S.sel.process?.name);
+  setDisp('purpose', S.sel.purpose);
+  const sub = [S.sel.project?.name, S.sel.process?.name, S.sel.purpose].filter(Boolean).join(' / ');
+  document.getElementById('headerSub').textContent = sub || '항목을 선택하세요';
+}
+
+function setDisp(key, val) {
+  const el = document.getElementById('disp-'+key);
+  const txt = document.getElementById('disp-'+key+'-text');
+  if (val) {
+    el.classList.add('filled');
+    txt.classList.remove('empty');
+    txt.textContent = '✓  ' + val;
+  } else {
+    el.classList.remove('filled');
+    txt.classList.add('empty');
+    txt.textContent = '선택 안 됨';
+  }
+}
+
+function updateShootBtn() {
+  const ok = S.sel.project && S.sel.process && S.sel.purpose;
+  const btn = document.getElementById('shootBtn');
+  btn.disabled = !ok;
+  btn.textContent = ok
+    ? `📷 ${S.sel.process.name} / ${S.sel.purpose} 촬영`
+    : '📷 사진 촬영';
+}
+
+// ── Camera ──
+function triggerCamera() {
+  // 모바일: capture="environment" → 후면 카메라 직접 실행
+  // 데스크톱: 파일선택 fallback
+  const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
+  if (isMobile) {
+    document.getElementById('cameraInput').click();
+  } else {
+    document.getElementById('fileInput').click();
+  }
+}
+
+function handlePhoto(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const now = new Date();
+  const pad = n => String(n).padStart(2,'0');
+  const date = `${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}`;
+  const time = `${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+  const month = `${now.getFullYear()}-${pad(now.getMonth()+1)}`;
+  const projName = S.sel.project.name.replace(/\s+/g,'');
+  const filename = `${projName}_${S.sel.process.name}_${S.sel.purpose}_${date}_${time}.jpg`;
+  const reader = new FileReader();
+  reader.onload = e => {
+    S.queue.push({
+      id: Date.now(), filename, thumb: e.target.result,
+      project: S.sel.project.name, process: S.sel.process.name,
+      purpose: S.sel.purpose, month,
+      nasPath: `NAS/현장사진/${S.sel.project.name}/${S.sel.process.name}/${S.sel.purpose}/${month}/`,
+      savedAt: now.toLocaleString('ko-KR')
+    });
+    save();
+    updateQueueBadge();
+    toast(`✓ ${filename}`);
+  };
+  reader.readAsDataURL(file);
+  event.target.value = '';
+}
+
+function updateQueueBadge() {
+  document.getElementById('queueBadge').textContent = S.queue.length > 0 ? ` (${S.queue.length})` : '';
+}
+
+// ── Queue ──
+function renderQueue() {
+  const el = document.getElementById('queueList');
+  if (!S.queue.length) {
+    el.innerHTML = `<div class="empty-state"><div class="empty-icon">⏳</div>대기 중인 사진이 없어요.<br>촬영 탭에서 사진을 찍으면 여기 쌓여요.</div>`;
+    return;
+  }
+  el.innerHTML = S.queue.map(q => `
+    <div class="queue-item">
+      <img class="queue-thumb" src="${q.thumb}" alt="">
+      <div class="queue-info">
+        <div class="queue-filename">${q.filename}</div>
+        <div class="queue-meta">📁 ${q.nasPath}</div>
+        <div class="queue-meta" style="color:var(--text3)">${q.savedAt}</div>
+      </div>
+      <button class="queue-del" onclick="delQueue(${q.id})">×</button>
+    </div>
+  `).join('') + `
+    <div class="export-box" style="margin-top:16px">
+      <h4>Cowork 명령어</h4>
+      <div class="code-block">"내 사진 폴더에서 현장사진 파일들을
+파일명 규칙에 따라 NAS/현장사진/ 폴더로 자동 분류해줘"</div>
+    </div>`;
+}
+
+function delQueue(id) {
+  S.queue = S.queue.filter(q => q.id !== id);
+  save(); updateQueueBadge(); renderQueue();
+}
+
+// ── Settings ──
+function renderSettings() {
+  // Projects
+  document.getElementById('manage-projects').innerHTML = S.projects.length
+    ? S.projects.map(p => `
+        <div class="tag-item" style="margin-bottom:6px;padding:8px 12px">
+          <span style="flex:1">${p.name}</span>
+          <span style="font-size:11px;color:var(--text3);margin-right:8px">${p.categoryLabel}</span>
+          <button class="tag-remove" onclick="delProject('${p.id}')">×</button>
+        </div>`).join('')
+    : `<div style="font-size:12px;color:var(--text3)">등록된 프로젝트 없음</div>`;
+
+  // Processes (all)
+  let procHtml = '';
+  S.projects.forEach(p => {
+    const list = S.processes[p.id] || [];
+    if (!list.length) return;
+    procHtml += `<div style="font-size:11px;color:var(--text2);margin:8px 0 4px">${p.name}</div>`;
+    procHtml += list.map(pr => `
+      <div class="tag-item" style="margin-bottom:4px">
+        ${pr.name}
+        <button class="tag-remove" onclick="delProcess('${p.id}','${pr.id}')">×</button>
+      </div>`).join('');
+  });
+  document.getElementById('manage-processes').innerHTML = procHtml ||
+    `<div style="font-size:12px;color:var(--text3)">등록된 항목 없음</div>`;
+
+  // Purposes
+  document.getElementById('manage-purposes').innerHTML = S.purposes.map(p => `
+    <div class="tag-item" style="margin-bottom:4px">
+      ${p}
+      <button class="tag-remove" onclick="delPurpose('${p}')">×</button>
+    </div>`).join('');
+}
+
+function delProject(id) {
+  if (!confirm('이 프로젝트를 삭제할까요?')) return;
+  S.projects = S.projects.filter(p => p.id !== id);
+  delete S.processes[id];
+  if (S.sel.project?.id === id) { S.sel.project = null; S.sel.process = null; }
+  save(); refreshProjectSelect(); refreshProcessSelect(); updateDisplay(); updateShootBtn(); renderSettings();
+}
+
+function delProcess(projId, procId) {
+  if (!S.processes[projId]) return;
+  S.processes[projId] = S.processes[projId].filter(p => p.id !== procId);
+  if (S.sel.process?.id === procId) S.sel.process = null;
+  save(); refreshProcessSelect(); updateDisplay(); updateShootBtn(); renderSettings();
+}
+
+function delPurpose(p) {
+  if (S.purposes.length <= 1) { toast('최소 1개는 있어야 해요', 'var(--accent2)'); return; }
+  S.purposes = S.purposes.filter(x => x !== p);
+  if (S.sel.purpose === p) S.sel.purpose = null;
+  save(); refreshPurposeSelect(); updateDisplay(); updateShootBtn(); renderSettings();
+}
+
+// ── Modal ──
+let _modalTempItems = [];
+
+function openModal(type) {
+  S.modalType = type;
+  _modalTempItems = [];
+  document.getElementById('modal-input').value = '';
+  document.getElementById('modal-tag-list').innerHTML = '';
+
+  const titles = { project:'새 프로젝트 추가', process:'항목 추가', purpose:'촬영 목적 추가' };
+  const hints  = {
+    project: '프로젝트명을 입력하고 ＋를 눌러 추가하세요.\n분류 기준 이름(공정라인, 물류존 등)도 함께 입력해요.',
+    process: S.sel.project ? `[${S.sel.project.name}] 프로젝트에 항목을 추가해요.` : '먼저 프로젝트를 선택하세요.',
+    purpose: '촬영 목적을 추가해요. 모든 프로젝트에 공통 적용돼요.'
+  };
+  const phs = { project:'예: GM Warren EV Line', process:'예: L1, Zone-A, 1호기...', purpose:'예: 시운전, 출하검사...' };
+
+  document.getElementById('modal-title').textContent = titles[type];
+  document.getElementById('modal-hint').textContent = hints[type];
+  document.getElementById('modal-input').placeholder = phs[type];
+
+  // process 시 프로젝트 미선택 경고
+  if (type === 'process' && !S.sel.project) {
+    toast('먼저 프로젝트를 선택하세요', 'var(--accent2)');
+    return;
+  }
+
+  // project 모달은 이름+분류기준 두 필드
+  if (type === 'project') {
+    document.getElementById('modal-hint').innerHTML =
+      '프로젝트명 → ＋ 버튼으로 추가하세요.<br><span style="color:var(--accent2)">분류기준(공정라인, 물류존 등)은 프로젝트명 앞에 <b>[기준명]프로젝트명</b> 형식으로 입력해도 돼요.</span><br><span style="color:var(--text3)">예: [공정라인]GM Warren EV</span>';
+  }
+
+  document.getElementById('modalOverlay').classList.add('open');
+  setTimeout(() => document.getElementById('modal-input').focus(), 150);
+}
+
+function modalAdd() {
+  const input = document.getElementById('modal-input');
+  const val = input.value.trim();
+  if (!val) return;
+  const type = S.modalType;
+
+  if (type === 'project') {
+    // [분류기준]프로젝트명 파싱
+    let label = '공정/구역', name = val;
+    const m = val.match(/^\[(.+?)\](.+)/);
+    if (m) { label = m[1].trim(); name = m[2].trim(); }
+    const id = Date.now().toString();
+    S.projects.push({ id, name, categoryLabel: label });
+    if (!S.processes[id]) S.processes[id] = [];
+    save(); refreshProjectSelect();
+    toast(`"${name}" 추가됨`);
+  } else if (type === 'process') {
+    if (!S.sel.project) return;
+    const pid = S.sel.project.id;
+    if (!S.processes[pid]) S.processes[pid] = [];
+    if (S.processes[pid].find(p => p.name === val)) { toast('중복 항목이에요', 'var(--accent2)'); return; }
+    S.processes[pid].push({ id: Date.now().toString(), name: val });
+    save(); refreshProcessSelect();
+    toast(`"${val}" 추가됨`);
+  } else if (type === 'purpose') {
+    if (S.purposes.includes(val)) { toast('중복 항목이에요', 'var(--accent2)'); return; }
+    S.purposes.push(val);
+    save(); refreshPurposeSelect();
+    toast(`"${val}" 추가됨`);
+  }
+
+  // 태그 목록 갱신
+  renderModalTags();
+  input.value = '';
+  input.focus();
+}
+
+function renderModalTags() {
+  const type = S.modalType;
+  let items = [];
+  if (type === 'project') items = S.projects.map(p => p.name);
+  else if (type === 'process' && S.sel.project) items = (S.processes[S.sel.project.id] || []).map(p => p.name);
+  else if (type === 'purpose') items = S.purposes;
+  document.getElementById('modal-tag-list').innerHTML = items.map(i =>
+    `<div class="tag-item">${i}</div>`).join('');
+}
+
+function closeModal() { document.getElementById('modalOverlay').classList.remove('open'); }
+function closeModalOutside(e) { if (e.target === document.getElementById('modalOverlay')) closeModal(); }
+
+document.getElementById('modal-input').addEventListener('keydown', e => { if(e.key==='Enter') modalAdd(); });
+
+// ── Init ──
+load();
+refreshProjectSelect();
+refreshProcessSelect();
+refreshPurposeSelect();
+updateDisplay();
+updateShootBtn();
+updateQueueBadge();
+</script>
+</body>
+</html>
